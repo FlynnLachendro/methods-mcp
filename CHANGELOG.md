@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 — 2026-04-14
+
+Republish: includes the `mcp-name` ownership marker in the bundled README so the package can be claimed via the MCP Registry's verification handshake. No code changes vs 0.1.0.
+
 ## 0.1.0 — 2026-04-14
 
 Initial release. Built for the Worldwide AI Science Fellowship build challenge.
