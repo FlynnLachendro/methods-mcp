@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <link href="http://arxiv.org/api/query?id_list=2410.01234" rel="self" type="application/atom+xml"/>
+  <title type="html">ArXiv Query: id_list=2410.01234</title>
+  <id>http://arxiv.org/api/2410.01234</id>
+  <updated>2026-04-14T00:00:00-04:00</updated>
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">1</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/abs/2410.01234v1</id>
+    <updated>2024-10-02T17:30:00Z</updated>
+    <published>2024-10-02T17:30:00Z</published>
+    <title>An Agentic Approach to Bench Science: methods-mcp Test Fixture</title>
+    <summary>This is a synthetic abstract used to exercise methods-mcp's arXiv parser. We demonstrate end-to-end orchestration of an agent over a paper-extraction MCP server, achieving 100% deterministic test runs. Code: https://github.com/example/agentic-bench.</summary>
+    <author><name>Ada Lovelace</name></author>
+    <author><name>Alan Turing</name></author>
+    <link href="http://arxiv.org/abs/2410.01234v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2410.01234v1" rel="related" type="application/pdf"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>

@@ -1,0 +1,108 @@
+[project]
+name = "methods-mcp"
+version = "0.1.0"
+description = "Lightweight, on-demand MCP server for structured methods extraction and reproducibility heuristics on academic papers."
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Flynn Lachendro", email = "flynnlachendro@hotmail.co.uk" },
+]
+maintainers = [
+    { name = "Flynn Lachendro", email = "flynnlachendro@hotmail.co.uk" },
+]
+requires-python = ">=3.11"
+keywords = ["mcp", "model-context-protocol", "academic-papers", "ai-for-science", "reproducibility", "fastmcp", "anthropic", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "fastmcp>=2.0.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.6.0",
+    "loguru>=0.7.0",
+    "anthropic>=0.40.0",
+    "selectolax>=0.3.20",
+    "pypdf>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "respx>=0.21.0",
+]
+agent = [
+    "claude-agent-sdk>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/FlynnLachendro/methods-mcp"
+Repository = "https://github.com/FlynnLachendro/methods-mcp"
+Issues = "https://github.com/FlynnLachendro/methods-mcp/issues"
+
+[project.scripts]
+methods-mcp = "methods_mcp.server:main"
+
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/methods_mcp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["methods_mcp"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+disallow_untyped_decorators = false
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["fastmcp.*", "selectolax.*", "claude_agent_sdk.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --tb=short"
