@@ -42,3 +42,6 @@ htmlcov/
 fixtures_cache/
 *.local.md
 .claude/settings.local.json
+
+# mcp-publisher credentials
+.mcpregistry_*_token
