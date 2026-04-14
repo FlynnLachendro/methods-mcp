@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.FlynnLachendro/methods-mcp",
+  "title": "methods-mcp",
+  "description": "Lightweight, on-demand MCP server for structured methods extraction and reproducibility heuristics on academic papers.",
+  "version": "0.1.0",
+  "websiteUrl": "https://github.com/FlynnLachendro/methods-mcp",
+  "repository": {
+    "url": "https://github.com/FlynnLachendro/methods-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "methods-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "description": "Required for LLM-driven extraction tools (extract_methods, summarize_paper, methods_repro_review).",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "GITHUB_TOKEN",
+          "description": "Optional. Raises the GitHub REST API rate limit used by reproducibility assessment.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "METHODS_MCP_MODEL",
+          "description": "Override the default Claude model (default: claude-sonnet-4-6).",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
