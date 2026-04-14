@@ -8,6 +8,8 @@
 
 > Lightweight, on-demand MCP server for **structured methods extraction** + **reproducibility heuristics** on academic papers. Built for the [Worldwide AI Science Fellowship](https://www.aisciencesummit.com/) build challenge.
 
+> ⚠️ **Status: alpha (0.1.x).** The tool surface and output shapes may shift between minor versions. **Pin to an exact version** in production. Bug reports very welcome via [GitHub Issues](https://github.com/FlynnLachendro/methods-mcp/issues).
+
 `methods-mcp` is a small, sharply-scoped [Model Context Protocol](https://modelcontextprotocol.io) server. It gives any AI agent (Claude Code, Claude Desktop, your Agent SDK script, etc.) eight tools that turn an academic paper URL into:
 
 - canonical metadata,
@@ -99,6 +101,25 @@ All tools return Pydantic v2 models (validated, JSON-serialisable). See [`src/me
 - **`assess_repo_reproducibility` does not clone or execute anything.** It scores the repo from publicly-readable GitHub metadata + the recursive tree listing. This is the deliberate wedge against batch tools that try to actually rerun the paper.
 - **`fetch_paper_text` prefers ar5iv HTML over PDF parsing for arXiv papers.** Falls back to `pypdf` for non-arXiv inputs.
 - **The default model is `claude-sonnet-4-6`.** Override via `METHODS_MCP_MODEL` env var or per-call `model=` arg.
+
+## Security & limitations
+
+What this server *actually* does when you install and run it:
+
+- **Network calls only to**: `export.arxiv.org`, `ar5iv.labs.arxiv.org`, `arxiv.org` (PDFs), `api.github.com`, `paperswithcode.com`, `api.anthropic.com`. No telemetry, no analytics, no phone-home.
+- **Reads** `ANTHROPIC_API_KEY` (required for LLM tools) and optionally `GITHUB_TOKEN` from environment variables. These are sent only to Anthropic / GitHub respectively. Never logged, never persisted to disk.
+- **Writes** nothing to your filesystem. No cache directories, no downloaded PDFs, no temp files.
+- **Executes** no user-supplied code. No `eval`, `exec`, `subprocess`, `pickle.loads`, or shell-outs. The reproducibility tool deliberately *does not* clone or run repositories — it scores from the GitHub REST API only.
+
+**Limitations to be aware of:**
+
+- **Adversarial papers may produce misleading structured output.** The `extract_methods` tool sends paper text to Claude. A paper containing prompt-injection content could yield wrong (but schema-valid) structured methods. Treat the output as a research aid, not ground truth.
+- **The reproducibility verdict is a heuristic, not a proof.** A high score means the repo *looks* well-structured for reproduction; it does not guarantee that running the code reproduces the paper. For full validation see [Paper2Agent](https://arxiv.org/abs/2509.06917).
+- **Intended for local stdio use.** The HTTP/SSE transports are provided for development convenience but should only be exposed on trusted networks (no SSRF protection beyond what httpx provides).
+
+**Reporting issues:**
+
+Security issues: please email flynnlachendro@hotmail.co.uk (also see [`SECURITY.md`](SECURITY.md)). Functional bugs: open a [GitHub issue](https://github.com/FlynnLachendro/methods-mcp/issues).
 
 ## Pair with `paper-mcp`
 
