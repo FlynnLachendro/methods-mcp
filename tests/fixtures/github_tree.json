@@ -1,0 +1,17 @@
+{
+  "sha": "abcdef",
+  "url": "https://api.github.com/repos/example/agentic-bench/git/trees/abcdef",
+  "tree": [
+    {"path": "README.md", "type": "blob"},
+    {"path": "LICENSE", "type": "blob"},
+    {"path": "pyproject.toml", "type": "blob"},
+    {"path": "make_figures.py", "type": "blob"},
+    {"path": "src", "type": "tree"},
+    {"path": "src/agentic_bench/__init__.py", "type": "blob"},
+    {"path": "data", "type": "tree"},
+    {"path": "data/experiment.csv", "type": "blob"},
+    {"path": "notebooks", "type": "tree"},
+    {"path": "notebooks/demo.ipynb", "type": "blob"}
+  ],
+  "truncated": false
+}

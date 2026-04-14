@@ -1,0 +1,138 @@
+# methods-mcp
+
+<!-- mcp-name: io.github.FlynnLachendro/methods-mcp -->
+
+[![PyPI](https://img.shields.io/pypi/v/methods-mcp.svg)](https://pypi.org/project/methods-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/methods-mcp.svg)](https://pypi.org/project/methods-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> Lightweight, on-demand MCP server for **structured methods extraction** + **reproducibility heuristics** on academic papers. Built for the [Worldwide AI Science Fellowship](https://www.aisciencesummit.com/) build challenge.
+
+`methods-mcp` is a small, sharply-scoped [Model Context Protocol](https://modelcontextprotocol.io) server. It gives any AI agent (Claude Code, Claude Desktop, your Agent SDK script, etc.) eight tools that turn an academic paper URL into:
+
+- canonical metadata,
+- best-effort full text + section split,
+- a **Pydantic-validated structured methods object** (steps / reagents / equipment / analyses),
+- the paper's associated **code repository** (best-effort discovery),
+- a **no-execution-required reproducibility verdict** for that repo, and
+- a multi-mode summary.
+
+The wedge: heavyweight pipelines like [Paper2Agent](https://arxiv.org/abs/2509.06917) (Stanford) take 30 minutes to hours to digest a paper into agent-ready tools. `methods-mcp` is the **agent-callable, on-demand** complement — every tool returns in seconds, no clone, no execution.
+
+---
+
+## Install
+
+```bash
+uv add methods-mcp
+# or, install globally:
+uv tool install methods-mcp
+# or, classic pip:
+pip install methods-mcp
+```
+
+Set your Anthropic API key (used by the LLM-driven extraction tools):
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+# Optional — raises GitHub REST API rate limit for repro assessment:
+export GITHUB_TOKEN=ghp_...
+```
+
+## Use it from Claude Code
+
+```
+/mcp add methods-mcp methods-mcp
+```
+
+Then in any Claude Code chat:
+
+> Take https://arxiv.org/abs/2509.06917 and run `methods_repro_review`. Summarise what the paper does, the methods steps, and how reproducible the repo looks.
+
+See [`examples/claude_code_demo.md`](examples/claude_code_demo.md) for more session prompts.
+
+## Use it from the Claude Agent SDK
+
+```python
+from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
+
+options = ClaudeAgentOptions(
+    mcp_servers={
+        "methods-mcp": {
+            "type": "stdio",
+            "command": "methods-mcp",
+            "args": [],
+        }
+    },
+    allowed_tools=["mcp__methods-mcp__methods_repro_review"],
+)
+
+async with ClaudeSDKClient(options=options) as client:
+    await client.query(
+        "Run methods_repro_review on https://arxiv.org/abs/2509.06917 "
+        "and tell me whether the repo looks reproducible."
+    )
+    async for msg in client.receive_response():
+        print(msg)
+```
+
+A complete runnable example lives in [`examples/reflexive_demo.py`](examples/reflexive_demo.py).
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `health` | Server liveness + config check. |
+| `get_paper_metadata(input_str)` | Resolve URL / arXiv ID / DOI to canonical metadata. arXiv inputs hit the arXiv export API for title/authors/abstract. |
+| `fetch_paper_text(input_str, prefer="auto"\|"html"\|"pdf")` | Full text + section split. Defaults to ar5iv HTML for arXiv papers (cheap, structured), PDF fallback otherwise. |
+| `extract_methods(input_str, model=None)` | LLM-driven, Pydantic-validated structured methods extraction. Returns `{steps, reagents, equipment, analyses, confidence}`. |
+| `find_code_repo(input_str)` | Discover the paper's code repo via paper text → abstract → Papers With Code. |
+| `assess_repo_reproducibility(repo_url, paper_id=None)` | Heuristic, no-clone reproducibility assessment via the GitHub REST API. Weighted signals (README, deps, fixtures, notebooks, figure scripts, recent maintenance, license) → `{verdict, score, recommended_entrypoint}`. |
+| `summarize_paper(input_str, mode="tldr"\|"abstract"\|"exec")` | LLM summary in three depths. |
+| `methods_repro_review(input_str)` | Composite — metadata + methods + repo + repro in one call. |
+
+All tools return Pydantic v2 models (validated, JSON-serialisable). See [`src/methods_mcp/schemas.py`](src/methods_mcp/schemas.py) for the full type surface.
+
+## Design notes
+
+- **`extract_methods` uses Anthropic tool-use to coerce the model into emitting an instance of the `MethodsStructured` Pydantic schema.** On validation failure we send one repair message with the validation error and try again before raising.
+- **`assess_repo_reproducibility` does not clone or execute anything.** It scores the repo from publicly-readable GitHub metadata + the recursive tree listing. This is the deliberate wedge against batch tools that try to actually rerun the paper.
+- **`fetch_paper_text` prefers ar5iv HTML over PDF parsing for arXiv papers.** Falls back to `pypdf` for non-arXiv inputs.
+- **The default model is `claude-sonnet-4-6`.** Override via `METHODS_MCP_MODEL` env var or per-call `model=` arg.
+
+## Pair with `paper-mcp`
+
+For broader paper search / citation graph tooling, run [`paper-mcp` (Bhvaik)](https://pypi.org/project/paper-mcp/) alongside in the same Claude Code session. `paper-mcp` does title-keyed search, full-text fetch, citations, and references; `methods-mcp` adds the structured-methods + reproducibility layer on top. The two were intentionally designed to compose.
+
+## Develop locally
+
+```bash
+git clone https://github.com/FlynnLachendro/methods-mcp
+cd methods-mcp
+uv sync --extra dev --extra agent
+
+uv run pytest                      # 29 tests, offline
+uv run ruff format .
+uv run ruff check . --fix
+uv run mypy src
+
+uv run methods-mcp --help
+```
+
+## Project notes
+
+`project-thoughts.md` (in this repo) is a running log of what we tried, what stuck, and what we cut while building this. Honest write-up for the WWSF Loom narration.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
+
+## Acknowledgements
+
+Built for the [Worldwide AI Science Fellowship](https://www.aisciencesummit.com/) inaugural cohort. Thanks to Michael Raspuzzi for the open-ended brief.
+
+Built on:
+- [FastMCP 3.x](https://github.com/jlowin/fastmcp) — the MCP server scaffold.
+- [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) — the agent loop in the demo.
+- [ar5iv.labs.arxiv.org](https://ar5iv.labs.arxiv.org/) — clean HTML for arXiv papers.
+- [Anthropic Claude](https://platform.claude.com) — the LLM behind structured extraction.
