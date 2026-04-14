@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.FlynnLachendro/methods-mcp",
   "title": "methods-mcp",
-  "description": "Lightweight, on-demand MCP server for structured methods extraction and reproducibility heuristics on academic papers.",
+  "description": "MCP server for structured methods extraction + reproducibility heuristics on academic papers.",
   "version": "0.1.0",
   "websiteUrl": "https://github.com/FlynnLachendro/methods-mcp",
   "repository": {
