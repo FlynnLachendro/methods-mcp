@@ -43,5 +43,8 @@ fixtures_cache/
 *.local.md
 .claude/settings.local.json
 
+# Private author assets — not for public repo
+marketing/
+
 # mcp-publisher credentials
 .mcpregistry_*_token
