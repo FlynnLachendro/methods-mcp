@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import PurePosixPath
 from typing import Any, Literal
 
 import httpx
@@ -249,12 +250,12 @@ async def quick_repo_assessment(repo_url: str, *, paper_id: str | None = None) -
                     paths.append(node.get("path", ""))
 
         path_lc = [p.lower() for p in paths]
-        deps_present = any(os.path.basename(p) in DEPS_FILES for p in paths)
+        deps_present = any(PurePosixPath(p).name in DEPS_FILES for p in paths)
         signals.append(
             ReproSignal(
                 name="has_dependencies_file",
                 present=deps_present,
-                details=", ".join(p for p in paths if os.path.basename(p) in DEPS_FILES)[:200]
+                details=", ".join(p for p in paths if PurePosixPath(p).name in DEPS_FILES)[:200]
                 or None,
                 weight=0.20,
             )
@@ -282,7 +283,7 @@ async def quick_repo_assessment(repo_url: str, *, paper_id: str | None = None) -
             )
         )
 
-        fig_script = next((p for p in paths if LIKELY_FIG_RE.search(os.path.basename(p))), None)
+        fig_script = next((p for p in paths if LIKELY_FIG_RE.search(PurePosixPath(p).name)), None)
         if fig_script:
             recommended_entrypoint = (
                 f"python {fig_script}" if fig_script.endswith(".py") else f"bash {fig_script}"

@@ -9,7 +9,7 @@ from methods_mcp.schemas import PaperSource
 
 
 @pytest.mark.parametrize(
-    "input_str,expected_id",
+    ("input_str", "expected_id"),
     [
         ("2410.01234", "2410.01234"),
         ("2410.01234v3", "2410.01234"),

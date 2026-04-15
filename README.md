@@ -10,6 +10,28 @@
 
 > ⚠️ **Status: alpha (0.1.x).** The tool surface and output shapes may shift between minor versions. **Pin to an exact version** in production. Bug reports very welcome via [GitHub Issues](https://github.com/FlynnLachendro/methods-mcp/issues).
 
+## Quick demo
+
+```text
+$ uvx --from methods-mcp methods-mcp --version
+methods-mcp 0.1.4
+
+# In a Claude Code session:
+> /mcp add methods-mcp methods-mcp
+> Run methods_repro_review on https://arxiv.org/abs/2509.06917
+
+  → tool: get_paper_metadata({"input_str":"https://arxiv.org/abs/2509.06917"})
+  → tool: methods_repro_review({"input_str":"https://arxiv.org/abs/2509.06917"})
+
+# Returns in seconds:
+# - methods: 10 steps, 2 reagents, 3 equipment, 4 analyses (confidence 0.72)
+# - code_repo: google-deepmind/alphagenome (detected in paper text, confidence 0.9)
+# - repro_assessment: likely-reproducible (0.9/1.0)
+#   entrypoint: python src/alphagenome/visualization/plot.py
+```
+
+---
+
 `methods-mcp` is a small, sharply-scoped [Model Context Protocol](https://modelcontextprotocol.io) server. It gives any AI agent (Claude Code, Claude Desktop, your Agent SDK script, etc.) eight tools that turn an academic paper URL into:
 
 - canonical metadata,
@@ -132,7 +154,7 @@ git clone https://github.com/FlynnLachendro/methods-mcp
 cd methods-mcp
 uv sync --extra dev --extra agent
 
-uv run pytest                      # 29 tests, offline
+uv run pytest                      # 49 tests, offline (respx-mocked httpx + unittest.mock for Anthropic)
 uv run ruff format .
 uv run ruff check . --fix
 uv run mypy src

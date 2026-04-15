@@ -52,7 +52,7 @@ def _norm_heading(text: str) -> str | None:
     if not cleaned:
         return None
     for alias, canonical in SECTION_ALIASES.items():
-        if cleaned == alias or cleaned.startswith(alias + " ") or cleaned.startswith(alias + ":"):
+        if cleaned == alias or cleaned.startswith((alias + " ", alias + ":")):
             return canonical
     return None
 

@@ -22,7 +22,8 @@ async def test_get_paper_metadata_arxiv(arxiv_atom_response: str) -> None:
     assert "Agentic Approach" in meta.title
     assert "Ada Lovelace" in meta.authors
     assert "Alan Turing" in meta.authors
-    assert meta.abstract is not None and "synthetic abstract" in meta.abstract
+    assert meta.abstract is not None
+    assert "synthetic abstract" in meta.abstract
 
 
 @pytest.mark.asyncio
