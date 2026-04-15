@@ -1,6 +1,6 @@
 [project]
 name = "methods-mcp"
-version = "0.1.2"
+version = "0.1.3"
 description = "Lightweight, on-demand MCP server for structured methods extraction and reproducibility heuristics on academic papers."
 readme = "README.md"
 license = "MIT"

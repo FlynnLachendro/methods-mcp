@@ -42,6 +42,7 @@ from .tools.summarize import summarize_paper_from_text
 
 mcp: FastMCP = FastMCP(
     name="methods-mcp",
+    version=__version__,
     instructions=(
         "Lightweight on-demand MCP for academic-paper methods extraction and code-repo "
         "reproducibility heuristics. Pair with paper-mcp (Bhvaik) for broader paper "

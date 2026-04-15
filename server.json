@@ -3,7 +3,7 @@
   "name": "io.github.FlynnLachendro/methods-mcp",
   "title": "methods-mcp",
   "description": "MCP server for structured methods extraction + reproducibility heuristics on academic papers.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "websiteUrl": "https://github.com/FlynnLachendro/methods-mcp",
   "repository": {
     "url": "https://github.com/FlynnLachendro/methods-mcp",
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "methods-mcp",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

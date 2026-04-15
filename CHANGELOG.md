@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-04-15
+
+**Fix**: MCP `serverInfo.version` in the JSON-RPC `initialize` response was defaulting to FastMCP's version (3.2.4) instead of our package version. Clients that display server versions (Claude Code, Claude Desktop, etc.) now see the real `methods-mcp` version.
+
 ## 0.1.2 — 2026-04-14
 
 Documentation + responsible-shipping pass. No code changes vs 0.1.1.

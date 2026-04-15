@@ -70,7 +70,7 @@ Or from the Claude Agent SDK — full demo in the repo at `examples/reflexive_de
 
 **8/**
 Github: https://github.com/FlynnLachendro/methods-mcp
-PyPI: https://pypi.org/project/methods-mcp/ (alpha — `uv add 'methods-mcp==0.1.2'`)
+PyPI: https://pypi.org/project/methods-mcp/ (alpha — `uv add 'methods-mcp==0.1.3'`)
 
 Process notes (what broke, what I cut) live in `project-thoughts.md` so future fellows don't trip on the same things.
 
@@ -96,7 +96,7 @@ A small FastMCP server that gives any AI agent (Claude Code, the Claude Agent SD
 - assess that repo's reproducibility — without cloning or executing anything
 - summarise the paper at three depths
 
-`uv add 'methods-mcp==0.1.2'`. That's it. Plug into Claude Code with `/mcp add methods-mcp`. Done. (It's an alpha — pin the exact version for now and expect output shapes to shift between minor releases.)
+`uv add 'methods-mcp==0.1.3'`. That's it. Plug into Claude Code with `/mcp add methods-mcp`. Done. (It's an alpha — pin the exact version for now and expect output shapes to shift between minor releases.)
 
 **The wedge**
 
@@ -138,7 +138,7 @@ shipped `methods-mcp` for the @WorldwideStudios AI for Science Fellowship tryout
 
 The lightweight, agent-callable companion to Stanford's Paper2Agent.
 
-Alpha — `uv add 'methods-mcp==0.1.2'` + `/mcp add methods-mcp` in Claude Code.
+Alpha — `uv add 'methods-mcp==0.1.3'` + `/mcp add methods-mcp` in Claude Code.
 
 [Loom]
 [GitHub]
