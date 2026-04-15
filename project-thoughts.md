@@ -72,3 +72,35 @@ The Paper2Agent paper claims they got 100% figure-regeneration accuracy on Alpha
 
 Tried to live-test `extract_methods` against the same paper. Got `anthropic.AuthenticationError: 401 invalid x-api-key`. The dev shell has a key set by Claude Code's own runtime that isn't valid for direct API calls. End users will need to export their own `ANTHROPIC_API_KEY`. The code path runs through to the API correctly — auth is the only blocker, which README already calls out.
 
+### Shipping it: PyPI + MCP Registry (Day 1 evening)
+
+Pulled the trigger on publishing mid-Day-1 instead of Day-5. Wasn't in the original plan, but two reasons:
+
+1. The MCP Registry requires PyPI to be live first — you can't register a server pointing at a package that doesn't exist yet.
+2. The user had set up the tokens and wanted forward motion. Fellowship submission needs a real artifact; shipping sooner meant more surface area for real-world bugs to emerge before the Loom recording.
+
+The ships were not smooth:
+
+- **0.1.0 shipped without the `mcp-name:` marker in the README.** I'd built the wheel before adding the marker line `<!-- mcp-name: io.github.FlynnLachendro/methods-mcp -->` to README. PyPI stores the README from the wheel's METADATA at upload time, not from the git repo, so the marker wasn't there. The MCP Registry's verification handshake (GET PyPI README → find `mcp-name:` → match the claimed server name) failed. **Lesson**: the marker needs to be in the *wheel* not just the repo. Fixed by bumping to 0.1.1 and republishing.
+
+- **Credential leak into git**. `mcp-publisher login github` writes `.mcpregistry_github_token` and `.mcpregistry_registry_token` to the project root. I had `git add -A` in a commit right after login and both files got committed to the private repo. Purged in a follow-up commit + gitignored. The leaked token is still in git history at commit `4686cd4`, so I recommended revocation. **Lesson**: mcp-publisher should `.gitignore` its own credential files; open an upstream issue if not already there.
+
+- **Registry JWT expires fast.** Roughly every ~30 min. Each `mcp-publisher publish` after a new version bump requires a fresh `mcp-publisher login github` (device-code flow). Not a bug — just operational friction to note.
+
+- **0.1.2 was a responsible-shipping pass**: alpha banner in README, Security & limitations section, `SECURITY.md`, Dependabot config, softer "pin the exact version" framing in the build-in-public post. This was the version that actually should have been 0.1.0 in a more patient world.
+
+- **0.1.3 fixes a cosmetic bug** found while running a post-publish smoke test: `FastMCP(name=...)` doesn't auto-populate `serverInfo.version` from the caller's package — it defaults to FastMCP's own version. So Claude Code was seeing `"version": "3.2.4"` (FastMCP's) instead of `"version": "0.1.2"` (ours). Fixed with `FastMCP(name=..., version=__version__, ...)`. **Lesson**: smoke-test the JSON-RPC handshake of your *installed* package from a fresh tmpdir, not just the in-repo version.
+
+### End of Day 1
+
+- PyPI: 0.1.0 (yank-bound), 0.1.1, 0.1.2, 0.1.3
+- MCP Registry: 0.1.1, 0.1.2 (0.1.3 pending a re-login)
+- GitHub: 10 commits on main, v0.1.3 tag, GitHub Release created
+- 29 tests passing offline, mypy strict, ruff clean, Dependabot on
+- `SECURITY.md` + Security & Limitations section + alpha framing all shipped
+- Marketing drafts (Loom script, X/LinkedIn/single-post) ready
+
+What did *not* go in today: actual recording of the Loom, actual posting, the submission email. Those are mine to do between now and Apr 20. Plenty of runway.
+
+Six versions in one day is more than is normal — but 0.1.0 → 0.1.3 represents: (a) the initial ship, (b) the mcp-name marker fix, (c) the responsible-shipping docs pass, (d) the serverInfo version fix. Each bump had a clear cause; none were "I forgot something." I'll read that as honest iteration rather than chaos.
+

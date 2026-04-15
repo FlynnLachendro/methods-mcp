@@ -90,8 +90,17 @@ To avoid this being "Flynn ships another web app," reach into at least one of:
 *(TBD after the plan-mode interview)*
 
 ## Submission Checklist
-- [ ] Reply "Challenge accepted." to Michael Raspuzzi
-- [ ] GitHub repo public with README / process docs
-- [ ] Build-in-public post drafted + posted (X / LinkedIn / YouTube)
-- [ ] 2–3 min Loom recorded + link ready
+- [x] Reply "Challenge accepted." to Michael Raspuzzi
+- [x] GitHub repo (private → flip public before submission)
+- [x] PyPI: methods-mcp 0.1.3 live
+- [x] MCP Registry: io.github.FlynnLachendro/methods-mcp v0.1.2 live (0.1.3 pending re-login)
+- [x] 29 tests passing + mypy strict + ruff clean + Dependabot on
+- [x] Security docs: Security & Limitations README section, SECURITY.md, alpha framing
+- [x] Marketing drafts ready: Loom script, X thread, LinkedIn long, single-tweet
+- [ ] Build-in-public post posted (draft in `marketing/build-in-public-post.md`)
+- [ ] 2–3 min Loom recorded with Kap (script in `marketing/loom-script.md`)
+- [ ] Yank PyPI 0.1.0 (Flynn clicks in web UI)
+- [ ] Enable PyPI 2FA
+- [ ] Revoke leaked GitHub OAuth token (was in commit 4686cd4)
+- [ ] Flip GitHub repo to public
 - [ ] Submission email sent to Michael by **2026-04-20 23:59 PT**
