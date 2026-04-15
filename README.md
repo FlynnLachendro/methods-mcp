@@ -97,8 +97,6 @@ Then in any Claude Code chat:
 
 > Take https://arxiv.org/abs/2509.06917 and run `methods_repro_review`. Summarise what the paper does, the methods steps, and how reproducible the repo looks.
 
-See [`examples/claude_code_demo.md`](examples/claude_code_demo.md) for more session prompts.
-
 ## Use it from the Claude Agent SDK
 
 ```python
@@ -123,8 +121,6 @@ async with ClaudeSDKClient(options=options) as client:
     async for msg in client.receive_response():
         print(msg)
 ```
-
-A complete runnable example lives in [`examples/reflexive_demo.py`](examples/reflexive_demo.py).
 
 ## Tools
 
