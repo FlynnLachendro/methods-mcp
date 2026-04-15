@@ -165,3 +165,61 @@ class HealthReport(BaseModel):
     version: str
     anthropic_configured: bool
     transports: list[str]
+
+
+class CompositeStatus(StrEnum):
+    """Top-level status of a composite-tool call.
+
+    `ok` — every sub-step succeeded. `partial` — at least one sub-step failed
+    (see `errors`) but we have usable results. `empty` — we couldn't even
+    resolve the paper input; no sub-steps ran.
+    """
+
+    OK = "ok"
+    PARTIAL = "partial"
+    EMPTY = "empty"
+
+
+CompositeStep = Literal[
+    "get_paper_metadata",
+    "fetch_paper_text",
+    "extract_methods",
+    "find_code_repo",
+    "assess_repo_reproducibility",
+]
+
+
+class CompositeError(BaseModel):
+    """One sub-step failure inside a composite-tool response.
+
+    `step` names the failing sub-tool; `error_type` is the Python exception
+    class name; `message` is the exception text. `hint` is an optional
+    plain-English, actionable suggestion (e.g. "Set ANTHROPIC_API_KEY…").
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    step: CompositeStep
+    error_type: str
+    message: str
+    hint: str | None = None
+
+
+class MethodsReproReview(BaseModel):
+    """Structured response from the `methods_repro_review` composite tool.
+
+    `narrative` is a plain-English summary of everything that was retrieved —
+    read it first. `status` tells you at a glance whether the call was fully
+    successful, partial, or empty. Numeric scores inside sub-objects carry
+    their own semantics; see the README's "Scores & verdicts explained" table.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: CompositeStatus
+    narrative: str
+    metadata: PaperMetadata | None = None
+    methods: MethodsStructured | None = None
+    code_repo: CodeRepo | None = None
+    repro_assessment: ReproAssessment | None = None
+    errors: list[CompositeError] = Field(default_factory=list)

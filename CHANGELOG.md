@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 — 2026-04-15
+
+**Two fixes to `find_code_repo` surfaced when live-testing on the Paper2Agent paper.**
+
+- **Fix: `.rstrip(".git")` was chewing trailing characters off repo names.** `str.rstrip` takes a *set of chars* to strip, so any repo name ending in `.`, `g`, `i`, or `t` lost those characters (e.g. `jmiao24/Paper2Agent` → `jmiao24/Paper2Agen`). Replaced with `str.removesuffix(".git")`. Regression tests added.
+- **Fix: repo discovery scored by surrounding phrases, not by first-match wins.** The old implementation picked the first GitHub URL in the paper text, which on papers that cite multiple repos (a paper's validation cases plus its own code) would pick a case-study repo over the paper's own. New `find_repos_in_text()` collects every URL, scores each by the phrase immediately preceding it (`STRONG_PHRASES` = "code availability" / "publicly available at" / "our code" / etc.; `MEDIUM_PHRASES` = "code:" / "available at" / etc.), and returns them sorted best-first. Dedupes across mentions with a small repeat-mention bonus. Preceding-text only (not surrounding) — prevents section-header bleed backwards.
+- **Papers With Code is now tried first** for arXiv papers (authoritative paper→repo mapping) before text-scanning. Confidence bumped to 0.95 when PWC resolves.
+- 8 new tests (49 → 57) covering the regression, the scoring ranking, multi-URL rankings, dedup with mention count, medium-phrase precedence, and PWC-first ordering.
+
 ## 0.1.4 — 2026-04-15
 
 Freshness + coverage pass. No API changes.

@@ -131,6 +131,31 @@ All tools return Pydantic v2 models (validated, JSON-serialisable). See [`src/me
 - **`assess_repo_reproducibility` does not clone or execute anything.** It scores the repo from publicly-readable GitHub metadata + the recursive tree listing. This is the deliberate wedge against batch tools that try to actually rerun the paper.
 - **`fetch_paper_text` prefers ar5iv HTML over PDF parsing for arXiv papers.** Falls back to `pypdf` for non-arXiv inputs.
 - **The default model is `claude-sonnet-4-6`.** Override via `METHODS_MCP_MODEL` env var or per-call `model=` arg.
+- **`methods_repro_review` is non-atomic.** Sub-steps run independently; any that raise contribute a `null` to the corresponding output key and push a message into `_errors`. An agent calling this tool should always check `_errors` and treat missing keys as *unavailable*, not *zero*. Example: a paper with no detectable repo returns `repro_assessment: null` and an empty `_errors` list — that's a correct "no repo found," not a failure.
+
+## Scores & verdicts explained
+
+Tool outputs contain three numeric fields that look similar but mean very different things. They are **triage signals for an agent deciding whether a paper is worth digging into**, not calibrated claims about correctness.
+
+| Field | Range | How it's computed | How to read it |
+|---|---|---|---|
+| `methods.confidence` | 0–1 | **LLM self-report.** The extractor model sets it per instructions in the system prompt: `≥0.8` only if the paper gives explicit reagents/volumes/equipment, `~0.3` if the methods section is sparse. Uncalibrated. | Soft signal for *"is this a wet-lab paper with concrete procedure, or a sparse systems paper?"* Useful as a flag; don't treat as a trust percentage. |
+| `code_repo.confidence` | 0–1 | **Varies by `detection_method`.** `papers-with-code`: fixed `0.95` (authoritative paper→repo API). `paper-text`: computed as `0.6 + 0.2·(strong-phrase-present) + 0.015·score_margin`, capped at `0.95`. `abstract-link`: fixed `0.85`. `none`: `0.0`. | Tells you **how** the repo was found and how decisively. High score + `paper-text` means a strong phrase like *"code is available at …"* sat next to the URL. |
+| `repro_assessment.overall_score` | 0–1 | **Weighted sum of 8 binary signals**, all computed from the GitHub REST API (no clone, no execution): `has_readme` (0.10), `readme_substantial` (0.15), `has_dependencies_file` (0.20), `has_data_or_fixtures` (0.10), `has_notebook` (0.10), `has_figure_script` (0.20), `actively_maintained` (0.10), `permissive_license` (0.05). Each present signal contributes its weight. | The only fully-deterministic score of the three. Still a heuristic, not a proof — a high score means the repo **looks** well-structured for reproduction. For actual validation see [Paper2Agent](https://arxiv.org/abs/2509.06917). |
+
+**Verdict buckets** (`repro_assessment.verdict`) are thresholds on `overall_score`:
+
+| Verdict | Score | Meaning |
+|---|---|---|
+| `likely-reproducible` | ≥ 0.70 | Most repro-friendly signals present. Worth trying to run. |
+| `partial` | ≥ 0.45 | Some infrastructure, likely gaps. Expect to fill in missing pieces. |
+| `unlikely` | ≥ 0.20 | Minimal signal. Possible code dump without the scaffolding to rerun it. |
+| `insufficient-info` | < 0.20 *or* repo unreachable | Not enough to tell. Don't draw conclusions either way. |
+
+**Enum values you'll see in outputs:**
+
+- `code_repo.detection_method`: `paper-text` | `abstract-link` | `papers-with-code` | `metadata` | `none`
+- `metadata.source`: `arxiv` | `biorxiv` | `doi` | `url` | `unknown`
 
 ## Security & limitations
 

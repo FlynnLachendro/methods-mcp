@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Any, Literal
 
@@ -17,10 +18,66 @@ from loguru import logger
 from ..schemas import CodeRepo, PaperMetadata, ReproAssessment, ReproSignal
 
 GITHUB_URL_RE = re.compile(
-    r"https?://(?:www\.)?github\.com/([\w.-]+)/([\w.-]+?)(?:/|\.git|\s|$)", re.I
+    # Trailing char class rules out common sentence punctuation eating real repo
+    # characters (e.g. "Paper2Agent ." → we want "Paper2Agent", not "Paper2Agen").
+    r"https?://(?:www\.)?github\.com/([\w.-]+)/([\w.-]+?)(?=/|\.git\b|[\s,.;:!?\])}>]|$)",
+    re.I,
 )
 PWC_API = "https://paperswithcode.com/api/v1/papers"
 USER_AGENT = "methods-mcp/0.1 (https://github.com/FlynnLachendro/methods-mcp)"
+
+# Phrases that strongly suggest the GitHub URL following/preceding them is
+# *the paper's own* repo, not a case-study reference.
+STRONG_PHRASES: tuple[str, ...] = (
+    "code availability",
+    "code is available at",
+    "publicly available at",
+    "is available at",
+    "we release our code",
+    "we release the code",
+    "we make our code",
+    "implementation is available",
+    "source code available",
+    "our implementation",
+    "our code",
+    "this paper",
+    "this work",
+)
+MEDIUM_PHRASES: tuple[str, ...] = (
+    "code:",
+    "github:",
+    "available at",
+    "code repository",
+    "released at",
+    "we provide",
+)
+
+
+def _normalise_repo_url(owner: str, repo: str) -> str:
+    # `.rstrip(".git")` is a set-of-chars strip and chews trailing "." / "g" / "i"
+    # / "t" characters off real repo names. Use `removesuffix` instead.
+    return f"https://github.com/{owner}/{repo.removesuffix('.git')}"
+
+
+@dataclass
+class _RepoCandidate:
+    url: str
+    score: float = 0.0
+    mentions: int = 0
+    contexts: list[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
+
+
+def _score_context(window: str) -> tuple[float, str | None]:
+    """Return (score, matched-phrase) for the ±chars window around a URL."""
+    w = window.lower()
+    for p in STRONG_PHRASES:
+        if p in w:
+            return 10.0, p
+    for p in MEDIUM_PHRASES:
+        if p in w:
+            return 5.0, p
+    return 1.0, None
 
 
 def _github_token() -> str | None:
@@ -35,78 +92,118 @@ def _gh_headers() -> dict[str, str]:
     return headers
 
 
+def find_repos_in_text(text: str, *, pre_window: int = 100) -> list[_RepoCandidate]:
+    """Find every GitHub URL in `text`, scored by the text that *precedes* it.
+
+    We only look at ``pre_window`` chars *before* each URL (not after), because
+    the text preceding a URL is what introduces it — post-URL text is usually
+    the next sentence. This stops the "code availability" section header from
+    bleeding backwards and scoring earlier case-study URLs.
+
+    Score per mention: 10 if a STRONG phrase precedes the URL, 5 for MEDIUM,
+    1 otherwise. Per repo (deduped): sum + 0.5 * (mentions - 1). Sorted best-first.
+    """
+    if not text:
+        return []
+    candidates: dict[str, _RepoCandidate] = {}
+    for m in GITHUB_URL_RE.finditer(text):
+        owner, repo = m.group(1), m.group(2)
+        url = _normalise_repo_url(owner, repo)
+        pre = text[max(0, m.start() - pre_window) : m.start()]
+        s, matched = _score_context(pre)
+        c = candidates.setdefault(url, _RepoCandidate(url=url))
+        c.score += s
+        c.mentions += 1
+        c.contexts.append(pre.strip())
+        if matched:
+            c.reasons.append(f"phrase '{matched}'")
+    for c in candidates.values():
+        if c.mentions > 1:
+            c.score += 0.5 * (c.mentions - 1)
+            c.reasons.append(f"{c.mentions} mentions")
+    return sorted(candidates.values(), key=lambda x: x.score, reverse=True)
+
+
 def find_repo_in_text(text: str) -> str | None:
-    """First GitHub URL found in `text`, normalised."""
-    m = GITHUB_URL_RE.search(text)
-    if not m:
-        return None
-    owner, repo = m.group(1), m.group(2).rstrip(".git")
-    return f"https://github.com/{owner}/{repo}"
+    """Best-scored GitHub URL in `text`, or None.
+
+    Thin wrapper over :func:`find_repos_in_text` kept for stability / testing.
+    """
+    repos = find_repos_in_text(text)
+    return repos[0].url if repos else None
 
 
 async def find_code_repo(*, metadata: PaperMetadata, full_text: str | None = None) -> CodeRepo:
     """Discover a code repo for a paper.
 
-    Strategy:
-      1. Scan paper full_text for github.com URLs.
-      2. Scan abstract.
-      3. (arXiv-only) try Papers With Code lookup.
+    Strategy, in order:
+      1. Papers With Code (arXiv-only, authoritative paper→repo mapping).
+      2. Scored full-text scan — collect every GitHub URL, rank by surrounding
+         phrases ("code availability", "our code", etc.) + mention count.
+      3. Scored abstract scan (same approach, smaller corpus).
     """
-    if full_text:
-        url = find_repo_in_text(full_text)
-        if url:
-            return CodeRepo(
-                paper_id=metadata.paper_id,
-                repo_url=url,
-                detection_method="paper-text",
-                confidence=0.9,
-                notes="Found GitHub URL inline in the paper text.",
-            )
-
-    if metadata.abstract:
-        url = find_repo_in_text(metadata.abstract)
-        if url:
-            return CodeRepo(
-                paper_id=metadata.paper_id,
-                repo_url=url,
-                detection_method="abstract-link",
-                confidence=0.85,
-                notes="Found GitHub URL in the abstract.",
-            )
-
-    # Papers With Code lookup (arXiv-only — PWC keys on arxiv ID)
+    # 1. Papers With Code is the most authoritative signal — try it first.
     if metadata.source.value == "arxiv":
         try:
             async with httpx.AsyncClient(
                 timeout=15.0, headers={"User-Agent": USER_AGENT}
             ) as client:
-                resp = await client.get(
-                    f"{PWC_API}/?arxiv_id={metadata.paper_id}",
-                )
+                resp = await client.get(f"{PWC_API}/?arxiv_id={metadata.paper_id}")
                 if resp.status_code == 200:
                     data = resp.json()
-                    results = data.get("results", [])
-                    if results:
-                        # PWC sometimes carries a repository_url; otherwise we'd need /repositories endpoint
-                        for r in results:
-                            repo_url = r.get("repository_url")
-                            if repo_url:
-                                return CodeRepo(
-                                    paper_id=metadata.paper_id,
-                                    repo_url=repo_url,
-                                    detection_method="papers-with-code",
-                                    confidence=0.75,
-                                    notes="Resolved via Papers With Code API.",
-                                )
+                    for r in data.get("results", []):
+                        repo_url = r.get("repository_url")
+                        if repo_url:
+                            return CodeRepo(
+                                paper_id=metadata.paper_id,
+                                repo_url=repo_url,
+                                detection_method="papers-with-code",
+                                confidence=0.95,
+                                notes="Resolved via Papers With Code API (authoritative).",
+                            )
         except (httpx.HTTPError, ValueError) as e:
             logger.warning("Papers With Code lookup failed: {}", e)
+
+    # 2. Full-text scored scan.
+    if full_text:
+        candidates = find_repos_in_text(full_text)
+        if candidates:
+            top = candidates[0]
+            # Confidence scales with how decisive the top candidate was:
+            # a lone URL gets ~0.7; a URL with a strong phrase + beating runners-up gets ~0.95.
+            has_strong = top.score >= 10
+            margin = top.score - (candidates[1].score if len(candidates) > 1 else 0.0)
+            confidence = min(0.95, 0.6 + (0.2 if has_strong else 0.0) + min(margin, 10.0) * 0.015)
+            notes = (
+                f"Scored {len(candidates)} GitHub URL(s) in paper text; top={top.url} "
+                f"(score {top.score:.1f}, {', '.join(top.reasons) or 'first match'})."
+            )
+            return CodeRepo(
+                paper_id=metadata.paper_id,
+                repo_url=top.url,
+                detection_method="paper-text",
+                confidence=round(confidence, 2),
+                notes=notes,
+            )
+
+    # 3. Abstract fallback.
+    if metadata.abstract:
+        candidates = find_repos_in_text(metadata.abstract)
+        if candidates:
+            return CodeRepo(
+                paper_id=metadata.paper_id,
+                repo_url=candidates[0].url,
+                detection_method="abstract-link",
+                confidence=0.85,
+                notes="Found GitHub URL in the abstract.",
+            )
 
     return CodeRepo(
         paper_id=metadata.paper_id,
         repo_url=None,
         detection_method="none",
         confidence=0.0,
-        notes="No GitHub URL found in paper text, abstract, or Papers With Code.",
+        notes="No GitHub URL found via Papers With Code, paper text, or abstract.",
     )
 
 
