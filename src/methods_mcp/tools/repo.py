@@ -274,7 +274,9 @@ async def quick_repo_assessment(repo_url: str, *, paper_id: str | None = None) -
             signals=[],
             notes="Not a recognisable GitHub URL.",
         )
-    owner, repo = m.group(1), m.group(2).rstrip(".git")
+    # Same footgun as 0.1.5: `.rstrip(".git")` strips any of ".gitT"; use
+    # `removesuffix` so repo names ending in t/g/i/. survive intact.
+    owner, repo = m.group(1), m.group(2).removesuffix(".git")
 
     signals: list[ReproSignal] = []
     recommended_entrypoint: str | None = None

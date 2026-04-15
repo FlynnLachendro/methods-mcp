@@ -232,3 +232,34 @@ async def test_quick_repo_assessment_invalid_url() -> None:
     assessment = await quick_repo_assessment("not-a-github-url")
     assert assessment.verdict == "insufficient-info"
     assert assessment.signals == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_quick_repo_assessment_preserves_trailing_chars_in_repo_name(
+    github_repo_meta: str, github_readme: str, github_tree: str
+) -> None:
+    """Regression: `.rstrip(".git")` was also chewing chars in `quick_repo_assessment`.
+
+    Before the fix, `quick_repo_assessment("https://github.com/jmiao24/Paper2Agent")`
+    queried `api.github.com/repos/jmiao24/Paper2Agen` (trailing `t` stripped)
+    and returned "Repo not found or GitHub API unreachable."
+    """
+    # Mock the CORRECT (unstripped) API path. If the bug comes back, respx
+    # will fail to match because the code will call ...Paper2Agen instead.
+    respx.get("https://api.github.com/repos/jmiao24/Paper2Agent").mock(
+        return_value=Response(200, json=json.loads(github_repo_meta))
+    )
+    respx.get("https://api.github.com/repos/jmiao24/Paper2Agent/readme").mock(
+        return_value=Response(200, json=json.loads(github_readme))
+    )
+    respx.get("https://api.github.com/repos/jmiao24/Paper2Agent/git/trees/main").mock(
+        return_value=Response(200, json=json.loads(github_tree))
+    )
+
+    assessment = await quick_repo_assessment(
+        "https://github.com/jmiao24/Paper2Agent", paper_id="2509.06917"
+    )
+    assert assessment.repo_url == "https://github.com/jmiao24/Paper2Agent"
+    assert assessment.verdict != "insufficient-info"
+    assert assessment.signals  # at least one signal came back
