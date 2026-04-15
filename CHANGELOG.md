@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7 — 2026-04-15
+
+**Fix: `.rstrip(".git")` bug was only half-fixed in 0.1.5.** The same footgun existed in `quick_repo_assessment` (line 277) as well as `find_repo_in_text`. 0.1.5 patched only the latter. As a result, `assess_repo_reproducibility("https://github.com/jmiao24/Paper2Agent")` was querying `api.github.com/repos/jmiao24/Paper2Agen` (trailing `t` stripped from the repo name), getting 404, and returning `verdict: insufficient-info` with the misleading note *"Repo not found or GitHub API unreachable."* Replaced with `str.removesuffix(".git")`. New regression test mocks the correct (unstripped) URL path, so if the bug returns the test fails to match and surfaces.
+
+Discovered by live-testing via MCP Inspector against the Paper2Agent repo, same methodology that surfaced the 0.1.5 fix. Tests 73 → 74.
+
 ## 0.1.6 — 2026-04-15
 
 **`methods_repro_review` output is now self-describing in plain English — minimal tool-learning required.**
