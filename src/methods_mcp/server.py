@@ -17,17 +17,22 @@ or HTTP transport:
 from __future__ import annotations
 
 import argparse
-from typing import Any, Literal
+from typing import Literal
 
 from fastmcp import FastMCP
 from loguru import logger
 
 from . import __version__
 from .llm import is_anthropic_configured
+from .narrative import build_narrative, classify_error_hint
 from .schemas import (
     CodeRepo,
+    CompositeError,
+    CompositeStatus,
+    CompositeStep,
     FullText,
     HealthReport,
+    MethodsReproReview,
     MethodsStructured,
     PaperMetadata,
     PaperSummary,
@@ -143,35 +148,82 @@ async def summarize_paper(
     return summarize_paper_from_text(paper_id=metadata.paper_id, full=full, mode=mode, model=model)
 
 
+def _record_error(
+    errors: list[CompositeError],
+    step: CompositeStep,
+    exc: Exception,
+) -> None:
+    """Append a structured, hint-enriched entry to the errors list."""
+    error_type = type(exc).__name__
+    message = str(exc)
+    errors.append(
+        CompositeError(
+            step=step,
+            error_type=error_type,
+            message=message,
+            hint=classify_error_hint(step, error_type, message),
+        )
+    )
+
+
 @mcp.tool
-async def methods_repro_review(input_str: str, model: str | None = None) -> dict[str, Any]:
-    """Composite tool: extract methods + find repo + assess reproducibility, in one call.
+async def methods_repro_review(input_str: str, model: str | None = None) -> MethodsReproReview:
+    """Resolve a paper + extract methods + find its code repo + assess reproducibility — in one call.
 
-    Convenience wrapper that an agent can call once and get the full picture.
-    Returns a dict with keys: metadata, methods, code_repo, repro_assessment.
-    Any sub-step that fails contributes a null and a `_errors` list entry.
+    Returns a `MethodsReproReview` object. **Read `narrative` first** — it's a
+    plain-English summary of everything retrieved, with every numeric score
+    echoed in context (e.g. "moderate confidence (0.72)"). Then:
+
+    - `status`: `"ok"` (all sub-steps succeeded), `"partial"` (some failed — see
+      `errors`), or `"empty"` (couldn't even resolve the input paper).
+    - `metadata`, `methods`, `code_repo`, `repro_assessment`: the structured
+      sub-results. Any step that failed contributes `null` for its key;
+      `null` means **unavailable**, not zero.
+    - `errors`: list of `{step, error_type, message, hint}` — one entry per
+      failed sub-step, with an actionable hint where the failure pattern is
+      recognised (e.g. missing ANTHROPIC_API_KEY, rate-limit, 404, timeout).
+
+    For the meaning of numeric scores and verdict buckets, see the
+    "Scores & verdicts explained" section of the README.
     """
-    errors: list[str] = []
-    metadata = await _get_paper_metadata(input_str)
+    errors: list[CompositeError] = []
 
+    # 1. Metadata — hard requirement for every other step.
+    try:
+        metadata = await _get_paper_metadata(input_str)
+    except Exception as e:
+        _record_error(errors, "get_paper_metadata", e)
+        return MethodsReproReview(
+            status=CompositeStatus.EMPTY,
+            narrative=build_narrative(None, None, None, None, errors),
+            metadata=None,
+            methods=None,
+            code_repo=None,
+            repro_assessment=None,
+            errors=errors,
+        )
+
+    # 2. Full text (feeds methods + find_code_repo).
     full: FullText | None = None
     try:
         full = await _fetch_paper_text(input_str)
     except Exception as e:
-        errors.append(f"fetch_paper_text failed: {e}")
+        _record_error(errors, "fetch_paper_text", e)
 
+    # 3. Methods (needs full text + Anthropic).
     methods: MethodsStructured | None = None
     if full is not None:
         try:
             methods = extract_methods_from_text(paper_id=metadata.paper_id, full=full, model=model)
         except Exception as e:
-            errors.append(f"extract_methods failed: {e}")
+            _record_error(errors, "extract_methods", e)
 
+    # 4. Repo lookup.
     code_repo: CodeRepo
     try:
         code_repo = await _find_code_repo(metadata=metadata, full_text=full.text if full else None)
     except Exception as e:
-        errors.append(f"find_code_repo failed: {e}")
+        _record_error(errors, "find_code_repo", e)
         code_repo = CodeRepo(
             paper_id=metadata.paper_id,
             repo_url=None,
@@ -180,20 +232,25 @@ async def methods_repro_review(input_str: str, model: str | None = None) -> dict
             notes=str(e),
         )
 
+    # 5. Reproducibility heuristic (needs a repo URL).
     repro: ReproAssessment | None = None
     if code_repo.repo_url:
         try:
             repro = await _quick_repo_assessment(code_repo.repo_url, paper_id=metadata.paper_id)
         except Exception as e:
-            errors.append(f"assess_repo_reproducibility failed: {e}")
+            _record_error(errors, "assess_repo_reproducibility", e)
 
-    return {
-        "metadata": metadata.model_dump(mode="json"),
-        "methods": methods.model_dump(mode="json") if methods else None,
-        "code_repo": code_repo.model_dump(mode="json"),
-        "repro_assessment": repro.model_dump(mode="json") if repro else None,
-        "_errors": errors,
-    }
+    status = CompositeStatus.OK if not errors else CompositeStatus.PARTIAL
+
+    return MethodsReproReview(
+        status=status,
+        narrative=build_narrative(metadata, methods, code_repo, repro, errors),
+        metadata=metadata,
+        methods=methods,
+        code_repo=code_repo,
+        repro_assessment=repro,
+        errors=errors,
+    )
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:

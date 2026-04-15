@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.6 — 2026-04-15
+
+**`methods_repro_review` output is now self-describing in plain English — minimal tool-learning required.**
+
+- **New top-level `status` field** (`"ok"` / `"partial"` / `"empty"`). One-look signal for whether the call fully succeeded, partially succeeded, or couldn't even resolve the input paper.
+- **New top-level `narrative` field** — plain-English summary of everything retrieved, with every numeric score echoed in context ("moderate confidence (0.72)", "verdict: likely reproducible", "Present signals: README, …"). A reader can understand the whole result from `narrative` + `status` alone, without reading the README.
+- **Structured `errors` replaces `_errors`.** Each entry is now `{step, error_type, message, hint?}` with an actionable plain-English `hint` for recognised failure patterns (missing `ANTHROPIC_API_KEY`, rate-limits, 404s, timeouts, invalid-LLM-response, encrypted-PDF). Unrecognised patterns leave `hint` as `null` rather than fabricating advice.
+- **New `MethodsReproReview` Pydantic return type.** The composite tool now returns a validated model instead of a raw dict. Sub-objects are `null` when the corresponding step failed or was not applicable (e.g. `repro_assessment: null` when no repo was detected).
+- **Narrative-building logic lives in `methods_mcp.narrative`** — a pure module with no I/O, 13 unit tests.
+- **Breaking** (0.1.x alpha, so fair game): `_errors: list[str]` is gone. Callers that depended on it should switch to `errors: list[{step, error_type, message, hint}]`.
+- **Two bugs caught by live-testing the new output on the Paper2Agent paper** (and fixed before ship): (1) the hint classifier's schema-validation branch matched "invalid x-api-key" auth errors because of the bare `"invalid"` substring check — added a specific auth-error branch and narrowed the schema-invalid match to `error_type=="ValidationError"`; (2) when the GitHub REST API is unreachable (e.g. unauthenticated rate limit), the assessor returns a `ReproAssessment` with empty signals — the narrative now detects this and says "reproducibility assessment was unavailable" with a `GITHUB_TOKEN` hint, instead of the misleading "Present signals: none. Missing: none."
+- Tests 57 → 73.
+
 ## 0.1.5 — 2026-04-15
 
 **Two fixes to `find_code_repo` surfaced when live-testing on the Paper2Agent paper.**

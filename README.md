@@ -14,20 +14,36 @@
 
 ```text
 $ uvx --from methods-mcp methods-mcp --version
-methods-mcp 0.1.4
+methods-mcp 0.1.6
 
 # In a Claude Code session:
 > /mcp add methods-mcp methods-mcp
 > Run methods_repro_review on https://arxiv.org/abs/2509.06917
 
-  → tool: get_paper_metadata({"input_str":"https://arxiv.org/abs/2509.06917"})
   → tool: methods_repro_review({"input_str":"https://arxiv.org/abs/2509.06917"})
 
-# Returns in seconds:
-# - methods: 10 steps, 2 reagents, 3 equipment, 4 analyses (confidence 0.72)
-# - code_repo: google-deepmind/alphagenome (detected in paper text, confidence 0.9)
-# - repro_assessment: likely-reproducible (0.9/1.0)
-#   entrypoint: python src/alphagenome/visualization/plot.py
+# Returns a MethodsReproReview object. Read `narrative` first — it explains
+# everything else in plain English, so no tool-learning is required:
+
+{
+  "status": "ok",
+  "narrative":
+    "Resolved the paper: 'Paper2Agent' by Miao et al. (arxiv 2509.06917, "
+    "2025-09-08). Extracted 11 methods steps at moderate self-reported "
+    "confidence (0.72) — the procedure is clearly described but hyperparameters "
+    "and software versions are absent. Detected the associated code repository "
+    "https://github.com/jmiao24/Paper2Agent from an inline link in the paper "
+    "text (detection confidence 0.94). The repo scored 0.90/1.00 on the "
+    "reproducibility heuristic — verdict: likely reproducible. Present signals: "
+    "substantive README, dependencies file, notebooks, figure-plotting script, "
+    "recent activity, permissive license. Missing: data/fixtures directory. "
+    "Suggested entrypoint: `python make_figures.py`.",
+  "metadata":          { ... },   # PaperMetadata
+  "methods":           { ... },   # MethodsStructured (null if extraction failed)
+  "code_repo":         { ... },   # CodeRepo           (null only if input unresolvable)
+  "repro_assessment":  { ... },   # ReproAssessment   (null if no repo detected)
+  "errors":            []         # [{step, error_type, message, hint}] on partial
+}
 ```
 
 ---
@@ -131,7 +147,7 @@ All tools return Pydantic v2 models (validated, JSON-serialisable). See [`src/me
 - **`assess_repo_reproducibility` does not clone or execute anything.** It scores the repo from publicly-readable GitHub metadata + the recursive tree listing. This is the deliberate wedge against batch tools that try to actually rerun the paper.
 - **`fetch_paper_text` prefers ar5iv HTML over PDF parsing for arXiv papers.** Falls back to `pypdf` for non-arXiv inputs.
 - **The default model is `claude-sonnet-4-6`.** Override via `METHODS_MCP_MODEL` env var or per-call `model=` arg.
-- **`methods_repro_review` is non-atomic.** Sub-steps run independently; any that raise contribute a `null` to the corresponding output key and push a message into `_errors`. An agent calling this tool should always check `_errors` and treat missing keys as *unavailable*, not *zero*. Example: a paper with no detectable repo returns `repro_assessment: null` and an empty `_errors` list — that's a correct "no repo found," not a failure.
+- **`methods_repro_review` returns a self-describing response.** Every call sets a top-level `status` (`"ok"` / `"partial"` / `"empty"`) and a `narrative` string that summarises everything retrieved in plain English — including every numeric score in context. A reader who reads only `narrative` + `status` gets the full picture without needing to learn the sub-object shapes. Sub-objects can be `null` when unavailable (e.g. `repro_assessment: null` on a paper with no detected repo — `status` stays `"ok"` because "no repo" isn't a failure). Failed sub-steps contribute a structured entry to `errors` with `{step, error_type, message, hint}`, where `hint` is an actionable plain-English suggestion for recognised patterns (missing API keys, rate-limits, 404s, timeouts, etc.) and `null` otherwise.
 
 ## Scores & verdicts explained
 
