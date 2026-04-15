@@ -207,10 +207,6 @@ uv run mypy src
 uv run methods-mcp --help
 ```
 
-## Project notes
-
-`project-thoughts.md` (in this repo) is a running log of what we tried, what stuck, and what we cut while building this. Honest write-up for the WWSF Loom narration.
-
 ## License
 
 MIT — see [`LICENSE`](LICENSE).

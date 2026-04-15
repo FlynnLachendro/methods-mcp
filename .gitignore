@@ -46,6 +46,7 @@ fixtures_cache/
 .claude/
 marketing/
 examples/
+project-thoughts.md
 
 # mcp-publisher credentials
 .mcpregistry_*_token
