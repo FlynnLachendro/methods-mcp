@@ -55,13 +55,21 @@ uv tool install methods-mcp
 pip install methods-mcp
 ```
 
-Set your Anthropic API key (used by the LLM-driven extraction tools):
+### API keys
+
+For best performance, set **both**:
+
+| Variable | Required? | What you get without it |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | **Required** for `extract_methods`, `summarize_paper`, `methods_repro_review` | Those tools raise `RuntimeError: ANTHROPIC_API_KEY not set`. Non-LLM tools (`fetch_paper_text`, `find_code_repo`, `assess_repo_reproducibility`) still work fine. |
+| `GITHUB_TOKEN` | **Optional but recommended** for `assess_repo_reproducibility` / `methods_repro_review` | You're capped at the GitHub unauthenticated rate limit (**60 req/hr per IP**). Each repo assessment is ~3 calls, so you'll hit the ceiling after ~15–20 repos/hr. With a token: **5,000 req/hr** (effectively unlimited). |
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-# Optional — raises GitHub REST API rate limit for repro assessment:
-export GITHUB_TOKEN=ghp_...
+export GITHUB_TOKEN=ghp_...          # optional but recommended
 ```
+
+Neither key is logged or persisted — they're sent only to `api.anthropic.com` and `api.github.com` respectively. See [`SECURITY.md`](SECURITY.md).
 
 ## Use it from Claude Code
 
